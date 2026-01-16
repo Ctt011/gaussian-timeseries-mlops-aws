@@ -1,0 +1,48 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Installing Lightsail Control (lightsailctl) plugin..."
+      - sudo curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" -o "/usr/local/bin/lightsailctl"
+      - sudo chmod +x /usr/local/bin/lightsailctl
+      - echo "Plugin installed."
+      - echo "Logging in to AWS ECR..."
+      - aws configure set default.region $AWS_REGION
+      - 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com'
+      - echo "Pre-build done."
+
+  build:
+    commands:
+      - echo "Building Docker image..."
+      - 'docker build -t flask-container-staging .'
+      - 'docker tag flask-container-staging:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/flask-container-staging:latest'
+      - echo "Docker image built and tagged for ECR."
+
+  post_build:
+    commands:
+      - echo "Pushing Docker image to ECR..."
+      - 'docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/flask-container-staging:latest'
+      - echo "Docker image pushed to ECR successfully."
+
+      - echo "Pushing image to Lightsail container service..."
+      - 'PUSH_OUTPUT=$(aws lightsail push-container-image --service-name flask-service-staging --label flask-container-staging --image $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/flask-container-staging:latest)'
+      - 'echo "Push output: $PUSH_OUTPUT"'
+
+      - 'IMAGE_TAG=$(echo "$PUSH_OUTPUT" | grep -oE "flask-service-staging\.flask-container-staging\.[0-9]+")'
+      - 'export IMAGE_TAG=":$IMAGE_TAG"'
+      - 'echo "Using Lightsail image tag: $IMAGE_TAG"'
+
+      - echo "Generating containers.json with environment variables..."
+      - 'echo "{\"flask\":{\"image\":\"$IMAGE_TAG\",\"environment\":{\"S3_BUCKET\":\"$S3_BUCKET\",\"S3_KEY\":\"$S3_KEY\",\"AWS_REGION\":\"$AWS_REGION\",\"AWS_ACCESS_KEY_ID\":\"$AWS_ACCESS_KEY_ID\",\"AWS_SECRET_ACCESS_KEY\":\"$AWS_SECRET_ACCESS_KEY\"},\"ports\":{\"5000\":\"HTTP\"}}}" > containers.json'
+
+      - echo "Generating public-endpoint.json..."
+      - 'echo "{\"containerName\":\"flask\",\"containerPort\":5000}" > public-endpoint.json'
+
+      - echo "Creating Lightsail STAGING deployment..."
+      - 'aws lightsail create-container-service-deployment --service-name flask-service-staging --containers file://containers.json --public-endpoint file://public-endpoint.json'
+      - echo "Staging deployment initiated!"
+
+artifacts:
+  files:
+    - '**/*'

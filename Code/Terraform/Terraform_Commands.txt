@@ -1,0 +1,32 @@
+# Initialize Terraform
+# This command initializes the working directory containing Terraform configuration files.
+
+terraform init
+
+------------------------------
+
+# Preview Terraform Changes
+# This command shows what actions Terraform will perform without applying them.
+
+terraform plan -var-file="secret.tfvars"
+
+------------------------------
+
+# Apply Only CodePipeline Resources
+# This command applies Terraform configuration only for the AWS CodePipeline resource.
+
+terraform apply -var-file="secrets.tfvars" -target=aws_codepipeline.pipeline
+
+------------------------------
+
+# Apply All Terraform Resources
+# This command applies the full Terraform configuration automatically without asking for confirmation.
+
+terraform apply -var-file="secrets.tfvars" --auto-approve
+
+------------------------------
+
+# If you want to destroy All Terraform Resources without going to the UI, just execute this command
+# This command destroys all resources managed by Terraform automatically without asking for confirmation.
+
+terraform destroy -var-file="secrets.tfvars" --auto-approve

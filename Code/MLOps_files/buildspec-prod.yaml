@@ -1,0 +1,44 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - 'echo "Installing Lightsail Control (lightsailctl) plugin..."'
+      - 'sudo curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" -o "/usr/local/bin/lightsailctl"'
+      - 'sudo chmod +x /usr/local/bin/lightsailctl'
+      - 'echo "Plugin installed."'
+
+      - 'echo "Logging in to AWS ECR..."'
+      - 'aws configure set default.region $AWS_REGION'
+      - 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com'
+      - 'echo "Pre-build done."'
+
+  build:
+    commands:
+      - 'echo "Pulling latest image from ECR for PRODUCTION deployment..."'
+      - 'ECR_IMAGE="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/flask-container-staging:latest"'
+      - 'docker pull $ECR_IMAGE'
+      - 'echo "Using ECR image: $ECR_IMAGE"'
+
+  post_build:
+    commands:
+      - 'echo "Pushing ECR image to PRODUCTION Lightsail service..."'
+      - 'PUSH_OUTPUT=$(aws lightsail push-container-image --service-name flask-service-prod --label flask --image $ECR_IMAGE)'
+      - 'echo "Push output: $PUSH_OUTPUT"'
+
+      - 'PROD_IMAGE="$ECR_IMAGE"'
+      - 'echo "Using Lightsail PROD image: $PROD_IMAGE"'
+
+      - 'echo "Generating containers-prod.json for PRODUCTION deployment..."'
+      - 'echo "{\"flask\":{\"image\":\"$PROD_IMAGE\",\"environment\":{\"S3_BUCKET\":\"$S3_BUCKET\",\"S3_KEY\":\"$S3_KEY\",\"AWS_REGION\":\"$AWS_REGION\",\"AWS_ACCESS_KEY_ID\":\"$AWS_ACCESS_KEY_ID\",\"AWS_SECRET_ACCESS_KEY\":\"$AWS_SECRET_ACCESS_KEY\"},\"ports\":{\"5000\":\"HTTP\"}}}" > containers-prod.json'
+
+      - 'echo "Generating public-endpoint-prod.json for PRODUCTION..."'
+      - 'echo "{\"containerName\":\"flask\",\"containerPort\":5000}" > public-endpoint-prod.json'
+
+      - 'echo "Creating Lightsail PRODUCTION deployment..."'
+      - 'aws lightsail create-container-service-deployment --service-name flask-service-prod --containers file://containers-prod.json --public-endpoint file://public-endpoint-prod.json'
+      - 'echo "Production deployment initiated!"'
+
+artifacts:
+  files:
+    - '**/*'
