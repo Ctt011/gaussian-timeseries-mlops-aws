@@ -199,6 +199,24 @@ The Gaussian Process model provides:
 - **Confidence Intervals**: Upper and lower bounds for predictions
 - **Visualization**: Training/test split and prediction plots
 
+### Model Performance
+
+**10-Year Healthcare Call Volume Trend (2010-2020)**
+![Time Series Plot](images/proj5_10yr_healthcare_timeseries_plot.png)
+
+**Train/Test Split (110 train / 22 test months)**
+![Train Test Split](images/proj5_train_split_plot.png)
+
+**Model Predictions vs Actual (Training Data)**
+![Predictions vs Actual](images/proj5_trainVSactual_2010_2019_plot.png)
+
+**Model Metrics**
+![Model Metrics](images/proj5_model_metrics_output.png)
+*Achieved R² = 1.0 and MAE = 10.4 on 132 months of historical call center data*
+
+**Error Distribution Analysis**
+![Error Distribution](images/proj5_%20TrainVsPredictions+Error%20distribution.png)
+
 ## CI/CD Pipeline Flow
 
 1. **Commit** code changes to GitHub
